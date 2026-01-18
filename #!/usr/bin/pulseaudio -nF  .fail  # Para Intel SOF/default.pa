@@ -1,0 +1,19 @@
+#!/usr/bin/pulseaudio -nF
+
+.fail
+
+# Para Intel SOF/Alder Lake
+load-module module-udev-detect use_ucm=1 ignore_dB=1
+
+# Códigocs específicos para Intel
+load-module module-alsa-sink device=hw:0,0
+load-module module-alsa-source device=hw:0,2
+
+# Resto de módulos
+load-module module-native-protocol-unix
+load-module module-default-device-restore
+load-module module-stream-restore
+load-module module-device-restore
+load-module module-rescue-streams
+load-module module-suspend-on-idle
+load-module module-position-event-sounds
