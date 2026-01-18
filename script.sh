@@ -1,56 +1,48 @@
-# Instalar
-sudo xbps-install rxvt-unicode
+#!/bin/bash
+echo "=== CONFIGURANDO INTEL ALDER LAKE AUDIO ==="
 
-# Configuración avanzada (~/.Xresources)
-cat > ~/.Xresources << 'EOF'
-! URxvt - Altamente personalizable
-URxvt*font: xft:FiraCode Nerd Font:size=11, xft:DejaVu Sans Mono:size=11
-URxvt*boldFont: xft:FiraCode Nerd Font:bold:size=11
-URxvt*italicFont: xft:FiraCode Nerd Font:italic:size=11
-URxvt*letterSpace: -1
+# 1. Detener audio existente
+pulseaudio --kill 2>/dev/null
+sudo alsa force-reload 2>/dev/null
 
-! Colores (Catppuccin Mocha)
-URxvt*background: #1e1e2e
-URxvt*foreground: #cdd6f4
-URxvt*color0:  #45475a
-URxvt*color1:  #f38ba8
-URxvt*color2:  #a6e3a1
-URxvt*color3:  #f9e2af
-URxvt*color4:  #89b4fa
-URxvt*color5:  #f5c2e7
-URxvt*color6:  #94e2d5
-URxvt*color7:  #bac2de
-URxvt*color8:  #585b70
-URxvt*color9:  #f38ba8
-URxvt*color10: #a6e3a1
-URxvt*color11: #f9e2af
-URxvt*color12: #89b4fa
-URxvt*color13: #f5c2e7
-URxvt*color14: #94e2d5
-URxvt*color15: #a6adc8
+# 2. Descargar firmware manualmente si es necesario
+echo "Instalando firmware SOF..."
+sudo xbps-install -y sof-firmware
 
-! Transparencia (sin GPU!)
-URxvt*depth: 32
-URxvt*background: [95]#1e1e2e
+# 3. Cargar módulos específicos para Alder Lake
+echo "Cargando módulos del kernel..."
+sudo modprobe -r snd_hda_intel snd_sof_pci snd_sof_intel_hda_common 2>/dev/null
+sleep 2
 
-! Comportamiento
-URxvt*saveLines: 10000
-URxvt*scrollBar: false
-URxvt*scrollTtyOutput: false
-URxvt*scrollWithBuffer: true
-URxvt*scrollTtyKeypress: true
-URxvt*termName: xterm-256color
-URxvt*keysym.C-Up: \033[1;5A
-URxvt*keysym.C-Down: \033[1;5B
-URxvt*perl-ext-common: default,matcher
+# Módulos específicos para Alder Lake-N
+sudo modprobe snd_sof_pci_intel_tgl
+sudo modprobe snd_sof_intel_hda_common
+sudo modprobe snd_sof
+sudo modprobe snd_hda_intel
 
-! Click en URLs
-URxvt*url-launcher: firefox
-URxvt*matcher.button: 1
-EOF
+# 4. Verificar carga de módulos
+echo "Módulos cargados:"
+lsmod | grep -E "snd|sof"
 
-# Cargar configuración
-xrdb -merge ~/.Xresources
+# 5. Crear symlinks de firmware
+echo "Configurando firmware..."
+sudo mkdir -p /lib/firmware/intel/sof 2>/dev/null
+sudo mkdir -p /lib/firmware/intel/sof-tplg 2>/dev/null
 
-# Iniciar
-urxvt
+# 6. Verificar dispositivos
+echo "Dispositivos ALSA:"
+sleep 2
+sudo aplay -l
+
+# 7. Iniciar PulseAudio
+echo "Iniciando PulseAudio..."
+export XDG_RUNTIME_DIR=/run/user/$(id -u)
+pulseaudio --start --exit-idle-time=-1 --daemonize=no &
+
+# 8. Verificar
+sleep 3
+echo "Estado PulseAudio:"
+pactl info 2>/dev/null || echo "PulseAudio no iniciado"
+
+# 9. Configurar volumen
+pactl set-sink-volume @DEFAULT_SINK@ 70% 2>/dev/null
